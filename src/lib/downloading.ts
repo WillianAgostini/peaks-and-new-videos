@@ -1,24 +1,42 @@
-import fs, { existsSync } from "fs";
+import { spawn } from "child_process";
+import { existsSync } from "node:fs";
 import path from "path";
-import ytdl from "ytdl-core";
+import winston from "winston";
 import { createDirIfNotExists } from "./utils";
 
-export function download(outDir: string, url: string): Promise<string> {
-  createDirIfNotExists(outDir);
-  const fileName = path.resolve(outDir, "video.mp4");
-
+export async function download(logger:winston.Logger, outDir: string, url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    if(existsSync(fileName)){
+    createDirIfNotExists(outDir);
+    const fileName = path.resolve(outDir, "video.mp4");
+    if (existsSync(fileName)) {
       resolve(fileName);
       return;
     }
 
-    // let info = await ytdl.getBasicInfo(videoUrl);
-    // console.log(info.formats);
-    
-    ytdl(url)
-      .pipe(fs.createWriteStream(fileName))
-      .once("finish", () => resolve(fileName))
-      .once("error", (err) => reject(err));
+    let script = spawn("yt-dlp", [
+      url,
+      "-f",
+      "best",
+      "-o",
+      fileName
+    ]);
+
+    script.stdout.on("data", (data) => {
+      console.log(`stdout: ${data}`);
+    });
+
+    script.stderr.on("data", (data) => {
+      console.log(`stderr: ${data}`);
+    });
+
+    script.on("error", (error) => {
+      console.log(`error: ${error.message}`);
+      reject(error);
+    });
+
+    script.on("close", (code) => {
+      console.log(`child process exited with code ${code}`);
+      resolve(fileName);
+    });
   });
 }

@@ -1,34 +1,40 @@
 import { XY } from "../type/x_y.";
 
-
 const normalize = (data: XY[]) => {
-    return data.map((item) => {
-      return { ...item, ...{ y: item.y * -1 + 100 } };
-    });
-  };
+  return data.map((item) => {
+    return { ...item, ...{ y: item.y * -1 + 100 } };
+  });
+};
 
-const detectHighVisualizations = (data: XY[], timeDurationInSec: number) => {
-  const peaksIndex = detectPeaks(data, 10, 100);
-  const peaks = peaksIndex.map((x) => data[x]);
-  const diffSize = timeDurationInSec / data.length;
-  return groupInWindow(peaks, diffSize);
+const detectHighVisualizations = (
+  data: XY[],
+  timeDurationInSec: number,
+  threshold: number
+): any => {
+  let groupedPeaks:any[] = [];
+  while (groupedPeaks.length < 2 && threshold > 10) {
+    const { peaks, diffSize } = detectSpikes(data, timeDurationInSec);
+    groupedPeaks = groupInWindow(peaks, diffSize);
+    threshold -= 10
+  }
+  return groupedPeaks;
 };
 
 const detectPeaks = (data: XY[], windowWidth: number, threshold: number) => {
-    const peaks = [];
-    for (let i = 0; i < data.length; i++) {
-      const start = Math.max(0, i - windowWidth);
-      const end = Math.min(data.length, i + windowWidth);
-      let deltaAcc = 0;
-      for (let a = start; a < end; a++) {
-        deltaAcc += Math.abs(data[a - 1]?.y - data[a]?.y);
-      }
-      if (deltaAcc > threshold) {
-        peaks.push(i);
-      }
+  const peaks = [];
+  for (let i = 0; i < data.length; i++) {
+    const start = Math.max(0, i - windowWidth);
+    const end = Math.min(data.length, i + windowWidth);
+    let deltaAcc = 0;
+    for (let a = start; a < end; a++) {
+      deltaAcc += Math.abs(data[a - 1]?.y - data[a]?.y);
     }
-    return peaks;
-  };
+    if (deltaAcc > threshold) {
+      peaks.push(i);
+    }
+  }
+  return peaks;
+};
 
 const groupInWindow = (data: XY[], diffSize: number) => {
   const groupedArray: any[] = [];
@@ -53,6 +59,17 @@ const groupInWindow = (data: XY[], diffSize: number) => {
   return groupedArray;
 };
 
+function detectSpikes(
+  data: XY[],
+  timeDurationInSec: number,
+  threshold = 100
+): any {
+  const peaksIndex = detectPeaks(data, 10, threshold);
+  const peaks = peaksIndex.map((x) => data[x]);
+  const diffSize = timeDurationInSec / data.length;
+  return { peaks, diffSize };
+}
+
 function getFrequency(C: string) {
   return C.split("C")
     .flatMap((item: string) => {
@@ -70,7 +87,6 @@ function getFrequency(C: string) {
     .filter((item: XY) => item?.y);
 }
 
-
 function populeTime(cParts: XY[], timeDurationInSec: number) {
   const maxX = Math.max(...cParts.map((item) => item.x));
   return cParts.map((item) => {
@@ -87,11 +103,11 @@ function secondsToMinSec(cPart: XY) {
 }
 
 export {
-    normalize,
-    detectHighVisualizations,
-    detectPeaks,
-    groupInWindow,
-    getFrequency,
-    populeTime,
-    secondsToMinSec
+  normalize,
+  detectHighVisualizations,
+  detectPeaks,
+  groupInWindow,
+  getFrequency,
+  populeTime,
+  secondsToMinSec,
 };
