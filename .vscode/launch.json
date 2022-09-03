@@ -19,6 +19,14 @@
             "program": "${workspaceFolder}/scrapping.ts",
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": ["${workspaceFolder}/out/**/*.js"]
+          },
+          {
+            "type": "node",
+            "request": "launch",
+            "name": "peak",
+            "program": "${workspaceFolder}/peakSignal.ts",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": ["${workspaceFolder}/out/**/*.js"]
           }
     ]
 }

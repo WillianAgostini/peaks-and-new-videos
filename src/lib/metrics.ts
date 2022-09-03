@@ -1,4 +1,6 @@
+import { exit } from "process";
 import { XY } from "../type/x_y.";
+import { ZScore, ZScoreOutput } from "./peakSignal";
 
 const normalize = (data: XY[]) => {
   return data.map((item) => {
@@ -6,69 +8,32 @@ const normalize = (data: XY[]) => {
   });
 };
 
-const detectHighVisualizations = (
-  data: XY[],
-  timeDurationInSec: number,
-  threshold: number
-): any => {
-  let groupedPeaks:any[] = [];
-  while (groupedPeaks.length < 2 && threshold > 10) {
-    const { peaks, diffSize } = detectSpikes(data, timeDurationInSec);
-    groupedPeaks = groupInWindow(peaks, diffSize);
-    threshold -= 10
-  }
-  return groupedPeaks;
+const detectHighVisualizations = (data: XY[]): any => {
+  return detectPeaks(data);
 };
 
-const detectPeaks = (data: XY[], windowWidth: number, threshold: number) => {
-  const peaks = [];
-  for (let i = 0; i < data.length; i++) {
-    const start = Math.max(0, i - windowWidth);
-    const end = Math.min(data.length, i + windowWidth);
-    let deltaAcc = 0;
-    for (let a = start; a < end; a++) {
-      deltaAcc += Math.abs(data[a - 1]?.y - data[a]?.y);
-    }
-    if (deltaAcc > threshold) {
-      peaks.push(i);
-    }
-  }
-  return peaks;
+const detectPeaks = (data: XY[]) => {
+  const input = data.map((x) => x.y);
+  const score = ZScore.calc(input, 30, 30, 0);
+  return groupInWindow(data, score);
 };
 
-const groupInWindow = (data: XY[], diffSize: number) => {
+const groupInWindow = (data: XY[], score: ZScoreOutput) => {
   const groupedArray: any[] = [];
   let currentGroup: any[] = [];
-  let lastValue = 0;
-  for (const d of data) {
-    const diff = d.x - lastValue;
-    if (diff < diffSize) {
-      currentGroup.push(d);
+  for (let index = 0; index < score.signals.length; index++) {
+    const signal = score.signals[index];
+    if (signal == 1) {
+      currentGroup.push(data[index]);
+    } else {
+      if (currentGroup.length > 0) {
+        groupedArray.push(JSON.parse(JSON.stringify(currentGroup)));
+        currentGroup = [];
+      }
     }
-
-    if (currentGroup.length && diff > diffSize) {
-      groupedArray.push(JSON.parse(JSON.stringify(currentGroup)));
-      currentGroup = [];
-    }
-    lastValue = d.x;
   }
-
-  if (currentGroup.length)
-    groupedArray.push(JSON.parse(JSON.stringify(currentGroup)));
-
   return groupedArray;
 };
-
-function detectSpikes(
-  data: XY[],
-  timeDurationInSec: number,
-  threshold = 100
-): any {
-  const peaksIndex = detectPeaks(data, 10, threshold);
-  const peaks = peaksIndex.map((x) => data[x]);
-  const diffSize = timeDurationInSec / data.length;
-  return { peaks, diffSize };
-}
 
 function getFrequency(C: string) {
   return C.split("C")

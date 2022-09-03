@@ -2,7 +2,7 @@ import { writeFileSync } from "fs-extra";
 import path, { format } from "path";
 import winston from "winston";
 import { download } from "./downloading";
-import { Console } from "./logger";
+import { Console } from "../interfaces/logger";
 import {
   getFrequency,
   normalize,
@@ -12,6 +12,7 @@ import {
 import { getPropertiesFrom } from "./scrapping";
 import { createDirIfNotExists } from "./utils";
 import { chargeVideo, parseVideo } from "./video";
+import { XY } from "../type/x_y.";
 
 export class Process implements Console {
   private logger!: winston.Logger;
@@ -65,14 +66,15 @@ export class Process implements Console {
   async start() {
     try {
       createDirIfNotExists(this.filePath);
-
+      
       this.logger.info("Buscando heatMap");
       const videoUrl = `https://www.youtube.com/watch?v=${this.videoId}`;
+      let cParts = await this.getHeatMap(videoUrl, this.filePath);
+      console.log('okay')
 
-      const highVisualizations = await this.generateMetrics(
-        videoUrl,
-        this.filePath
-      );
+      const highVisualizations = await this.generateMetrics(cParts);
+      console.log(highVisualizations);
+      // return;
       if (!highVisualizations.length) {
         this.logger.info(`Vídeo sem métricas de visualizações`);
         return;
@@ -94,17 +96,25 @@ export class Process implements Console {
         this.filePath
       );
     } catch (error: any) {
-      this.logger.error(error);
+      this.logger.error(error.message);
       writeFileSync(path.join(this.filePath, "error.txt"), error.stack);
     } finally {
       return this;
     }
   }
 
-  async generateMetrics(videoUrl: string, filePath: string) {
-    const { d, timeDurationInSec } = await getPropertiesFrom(videoUrl, filePath);
+  async generateMetrics(cParts: XY[]) {
+    return detectHighVisualizations(cParts);
+  }
+
+  private async getHeatMap(videoUrl: string, filePathToSave: string) {
+    const { d, timeDurationInSec } = await getPropertiesFrom(
+      videoUrl,
+      filePathToSave
+    );
     if (!d) throw new Error(`getHeatMapPath is empty`);
 
+    writeFileSync(path.join(this.filePath, "d.txt"), d);
     this.logger.info("Gerando métricas do vídeo");
     const delimiter = 12;
     const C = d.slice(delimiter);
@@ -112,13 +122,7 @@ export class Process implements Console {
 
     cParts = normalize(cParts);
     cParts = populeTime(cParts, timeDurationInSec);
-
-    const highVisualizations = detectHighVisualizations(
-      cParts,
-      timeDurationInSec,
-      100
-    );
-    return highVisualizations;
+    return cParts;
   }
 
   async generateNewVideos(
@@ -129,8 +133,12 @@ export class Process implements Console {
   ) {
     const video = await chargeVideo(pathFile);
     for (let [index, highVisualization] of highVisualizations.entries()) {
-      const from = parseInt(highVisualization[0].sec);
+      let from = parseInt(highVisualization[0].sec);
       let to = parseInt(highVisualization[highVisualization.length - 1].sec);
+      if (from == to) {
+        from -= 5;
+        to += 5;
+      }
       if (to > from + 60) to = from + 60;
       if (to < from + 10) to = from + 10;
       this.logger.info(`De ${from} seg até ${to} seg`);

@@ -1,5 +1,5 @@
 import cheerio from "cheerio";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import fs from "fs/promises";
 import path from "path";
 import puppeteer from "puppeteer";
@@ -7,15 +7,54 @@ import puppeteer from "puppeteer";
 const cssHeatMapPath = ".ytp-heat-map-path";
 const cssTimeDuration = ".ytp-time-duration";
 
-export async function getPropertiesFrom(url: string, filePath: string) {
-  const htmlDestination = path.join(filePath, "index.html");
+export interface VideoProperties {
+  d: string | undefined;
+  timeDurationInSec: number;
+}
+
+export async function getPropertiesFrom(
+  url: string,
+  fileToSavePath: string
+): Promise<VideoProperties> {
+  const fileToSaveProperties = path.join(fileToSavePath, "d.txt");
+
+  if (existsSync(fileToSaveProperties))
+    return JSON.parse(
+      readFileSync(fileToSaveProperties).toString()
+    ) as VideoProperties;
+
+  const htmlDestination = path.join(fileToSavePath, "index.html");
   const html = await getHtml(url, htmlDestination);
-  return parseHtml(html);
+  const response = parseHtml(html);
+  writeFileSync(fileToSaveProperties, JSON.stringify(response));
+  return response;
 }
 
 async function getHtml(url: string, filePath: string) {
-  if (existsSync(filePath)) 
-    return readFileSync(filePath).toString();
+  if (existsSync(filePath)) return readFileSync(filePath).toString();
+
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  try {
+    await page.goto(url);
+
+    await page?.waitForSelector(cssHeatMapPath, {
+      timeout: 5000,
+    });
+
+    const html = await page.content();
+    await fs.writeFile(filePath, html);
+    return html;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    await page.close({ runBeforeUnload: true });
+    await browser.close();
+  }
+}
+
+async function getHtm2(url: string, filePath: string) {
+  if (existsSync(filePath)) return readFileSync(filePath).toString();
 
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
@@ -58,8 +97,8 @@ function timeFromArray(times: string[]) {
 function parseHtml(html: any) {
   const $ = cheerio.load(html);
   let path = $(cssHeatMapPath);
-  const d = path.attr("d");
   const timeDurationInSec = interpretTimeDuration($(cssTimeDuration).text());
+  const d = path.attr("d");
   return {
     d,
     timeDurationInSec,
