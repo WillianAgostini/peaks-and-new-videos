@@ -9,12 +9,12 @@ const normalize = (data: XY[]) => {
 };
 
 const detectHighVisualizations = (data: XY[]): any => {
-  return detectPeaks(data);
+  return detectPeaks(data).filter((x) => x.length);
 };
 
 const detectPeaks = (data: XY[]) => {
   const input = data.map((x) => x.y);
-  const score = ZScore.calc(input, 30, 30, 0);
+  const score = ZScore.calc(input, 30, 5, 0);
   return groupInWindow(data, score);
 };
 
@@ -62,8 +62,12 @@ function populeTime(cParts: XY[], timeDurationInSec: number) {
 }
 
 function secondsToMinSec(cPart: XY) {
-  const min = Math.ceil(cPart.sec / 60);
-  const sec = Math.ceil(cPart.sec % 60);
+  let min = Math.ceil(cPart.sec / 60) - 1;
+  let sec = Math.ceil(cPart.sec % 60);
+  if (sec == 60) {
+    min++;
+    sec = 0;
+  }
   return `${min}:${sec}`;
 }
 

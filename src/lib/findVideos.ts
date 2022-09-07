@@ -1,5 +1,4 @@
 import * as yt from "youtube-search-without-api-key";
-import youtubeSearch from "youtube-search";
 
 export async function findVideosBy(search: string) {
   const videos = await yt.search(search);

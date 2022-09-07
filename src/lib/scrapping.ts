@@ -8,11 +8,11 @@ const cssHeatMapPath = ".ytp-heat-map-path";
 const cssTimeDuration = ".ytp-time-duration";
 
 export interface VideoProperties {
-  d: string | undefined;
+  d: string;
   timeDurationInSec: number;
 }
 
-export async function getPropertiesFrom(
+export async function getHeatMap(
   url: string,
   fileToSavePath: string
 ): Promise<VideoProperties> {
@@ -25,9 +25,10 @@ export async function getPropertiesFrom(
 
   const htmlDestination = path.join(fileToSavePath, "index.html");
   const html = await getHtml(url, htmlDestination);
-  const response = parseHtml(html);
-  writeFileSync(fileToSaveProperties, JSON.stringify(response));
-  return response;
+  const videoProperties = getHeatMapFromHtml(html);
+
+  writeFileSync(fileToSaveProperties, JSON.stringify(videoProperties));
+  return videoProperties;
 }
 
 async function getHtml(url: string, filePath: string) {
@@ -39,7 +40,7 @@ async function getHtml(url: string, filePath: string) {
     await page.goto(url);
 
     await page?.waitForSelector(cssHeatMapPath, {
-      timeout: 5000,
+      timeout: 10000,
     });
 
     const html = await page.content();
@@ -94,11 +95,13 @@ function timeFromArray(times: string[]) {
   };
 }
 
-function parseHtml(html: any) {
+function getHeatMapFromHtml(html: any) {
   const $ = cheerio.load(html);
   let path = $(cssHeatMapPath);
   const timeDurationInSec = interpretTimeDuration($(cssTimeDuration).text());
   const d = path.attr("d");
+  if (!d) throw new Error("Não existe HeatMap para esse vídeo");
+
   return {
     d,
     timeDurationInSec,
