@@ -8,7 +8,7 @@ export async function findVideosBy(search: string) {
   // return new Promise((resolve, reject) => {
   //   var opts: youtubeSearch.YouTubeSearchOptions = {
   //     maxResults: 10,
-  //     key: "AIzaSyCCpZr6swEcT31CA1P4B_p_CSAeqzhq3w4",
+  //     key: "",
   //   };
 
   //   youtubeSearch("minecraft", opts, (err, results) => {
